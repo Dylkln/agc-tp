@@ -196,7 +196,7 @@ def get_identity(alignment_list : list):
 
 def std(value_list):
     """
-    Return the standard deviation of an input list
+    Return the standard deviation of two values
     """
     
     return statistics.stdev(value_list)
@@ -221,21 +221,23 @@ def detect_chimera(perc_identity_matrix):
 
     for line in perc_identity_matrix:
 
-        standard_deviation.append(std(line[0], line[1]))
+        line_values = [line[0], line[1]]
+        standard_deviation.append(std(line_values))
 
         if flag == 0:
-            value_0 = line[0]
-            value_1 = line[0]
+            value_0 = line_values[0]
+            value_1 = line_values[0]
             flag = 1
         
         else:
 
             if similarity == 1:
                 pass
-            if value_0 != line[0] and value_1 != line[1]:
+
+            if value_0 != line_values[0] and value_1 != line_values[1]:
                 similarity = 1
-            value_0 = line[0]
-            value_1 = line[0]
+            value_0 = line_values[0]
+            value_1 = line_values[0]
 
         standard_deviation_mean = mean(standard_deviation)
 
