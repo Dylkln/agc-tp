@@ -119,7 +119,7 @@ def get_chunks(sequence : str, chunk_size : int):
         chunk.append(sequence[i:i + chunk_size])
 
     if len(chunk) >= 4:
-        yield chunk
+        return chunk
     else:    
         return None
 
@@ -195,7 +195,7 @@ def detect_chimera(perc_identity_matrix : matrix):
     Take an identity matrix
     """
 
-    
+
 
     pass
 
