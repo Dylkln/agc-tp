@@ -184,18 +184,64 @@ def get_identity(alignment_list : list):
     return the identity percentage of them
     """
     
-    tmp = len(common(alignment_list[0], alignment_list[1]))
-    identity = (tmp / len(alignement_list[0])) * 100
+    tmp = 0
+    for nt in zip(alignment_list[0], alignment_list[1]):
+        if nt[0] == nt[1]:
+            tmp += 1
+
+    identity = (tmp / len(alignment_list[0])) * 100
     
     return identity
+
+
+def std(value_list):
+    """
+    Return the standard deviation of an input list
+    """
+    
+    return statistics.stdev(value_list)
+
+def mean(value_list):
+    """
+    Return the mean of an input list
+    """
+    return statistics.mean(value_list)
 
 
 def detect_chimera(perc_identity_matrix):
     """
     Take an identity matrix
+    return boolean
     """
 
+    standard_deviation = []
+    similarity = 0
+    flag = 0
 
+
+    for line in perc_identity_matrix:
+
+        standard_deviation.append(std(line[0], line[1]))
+
+        if flag == 0:
+            value_0 = line[0]
+            value_1 = line[1]
+            flag = 1
+        
+        else:
+
+            if similarity == 1:
+                pass
+            if value_0 != line[0] and value_1 != line[1]:
+                similarity = 1
+            value_0 = line[0]
+            value_1 = line[0]
+
+        standard_deviation_mean = mean(standard_deviation)
+
+        if standard_deviation_mean > 5 and similarity == 1:
+            return True
+        return False
 
     pass
 
@@ -216,7 +262,7 @@ def abundance_greedy_clustering(amplicon_file : str, minseqlen : int, mincount :
 
 def write_OTU(OTU_list : list, output_file : str):
     """
-    
+    Take OTU list and write it in a fasta file
     """
     
     with open(output_file, "w") as filout:
@@ -249,12 +295,9 @@ def main():
 
     dereplication_fulllength(args.amplicon_file, args.minseqlen, args.mincount)
 
-    kmer_dict = get_unique_kmer({}, "TGGGGAATATTGCACAATGGGCGCAAGCCTGATGCAG", 0, 8)
-    print(kmer_dict)
-    kmer_dict = get_unique_kmer(kmer_dict, "GGGGAATATTGCACAATGGGCGCAAGCCTGATGCAGC", 1, 8)
-    print(kmer_dict)
-    kmer_dict = get_unique_kmer(kmer_dict, "GGGAATATTGCACAATGGGCGCAAGCCTGATGCAGCC", 2, 8)
-    print(kmer_dict)
+    L = ["TGGGGAATATTGCACAATGGGCGCAAGCCTGATGCAG", "TGGGGAATA--GCACAATGGGCGCAAGCCTCTAGCAG"]
+    ids = get_identity(L)
+    print(ids)
 
 if __name__ == '__main__':
     main()
