@@ -225,7 +225,7 @@ def detect_chimera(perc_identity_matrix):
 
         if flag == 0:
             value_0 = line[0]
-            value_1 = line[1]
+            value_1 = line[0]
             flag = 1
         
         else:
