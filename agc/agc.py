@@ -190,7 +190,7 @@ def get_identity(alignment_list : list):
     return identity
 
 
-def detect_chimera(perc_identity_matrix : matrix):
+def detect_chimera(perc_identity_matrix):
     """
     Take an identity matrix
     """
@@ -218,7 +218,12 @@ def write_OTU(OTU_list : list, output_file : str):
     """
     
     """
-    pass
+    
+    with open(output_file, "w") as filout:
+        for index, OTU in enumerate(OTU_list):
+            filout.write(f">OTU_{index + 1}, occurence : {OTU[1]}" + "\n")
+            filout.write(fill(OTU[0]))
+            filout.write("\n")
 
 
 def fill(text : str, width = 80):
