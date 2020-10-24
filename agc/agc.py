@@ -57,7 +57,7 @@ def get_arguments():
     parser = argparse.ArgumentParser(description=__doc__, usage=
                                      "{0} -h"
                                      .format(sys.argv[0]))
-    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True, 
+    parser.add_argument('-i', '-amplicon_file', dest='amplicon_file', type=isfile, required=True,
                         help="Amplicon is a compressed fasta file (.fasta.gz)")
     parser.add_argument('-s', '-minseqlen', dest='minseqlen', type=int, default = 400,
                         help="Minimum sequence length for dereplication")
@@ -74,10 +74,10 @@ def get_arguments():
 
 def read_fasta(amplicon_file : str, minseqlen : int):
     """
-    Take compressed fasta file and return sequences yield 
+    Take compressed fasta file and return sequences yield
     with a length greater or equal to minseqlen
     """
-    
+
     with gzip.open(amplicon_file, "rb") as filin:
         for sequence in filin:
             if len(sequence) >= minseqlen:
@@ -90,11 +90,11 @@ def dereplication_fulllength(amplicon_file : str, minseqlen : int, mincount : in
     Take a compressed fasta file, min length of sequences, and their min count
     return a yield of the sequence and its count
     """
-    
+
     seq_occ_dict = {}
-    
+
     for sequence in read_fasta(amplicon_file, minseqlen):
-        if sequence not in seq_occ_dict.keys():    
+        if sequence not in seq_occ_dict.keys():
             seq_occ_dict[sequence] = 0
         seq_occ_dict[sequence] += 1
 
@@ -110,17 +110,17 @@ def get_chunks(sequence : str, chunk_size : int):
     Take a sequence and a chunk size
     return a chunk yield
     """
-    
+
     chunk = []
     for i in range(0, len(sequence), chunk_size):
-        if chunk:    
+        if chunk:
             if len(sequence[i:i + chunk_size]) != len(chunk[0]):
                 break
         chunk.append(sequence[i:i + chunk_size])
 
     if len(chunk) >= 4:
         return chunk
-    else:    
+    else:
         return None
 
 
@@ -129,7 +129,7 @@ def cut_kmer(sequence : str, kmer_size : int):
     Take a sequence and a kmer_size
     return a kmer yield
     """
-    
+
     for i in range(len(sequence) - kmer_size + 1):
         yield sequence[i : i + kmer_size]
 
@@ -139,7 +139,7 @@ def get_unique(liste : list):
     take a list
     return the list with unique items
     """
-    
+
     return set(liste)
 
 
@@ -148,7 +148,7 @@ def common(liste1 : list, liste2 : list):
     Take two lists
     return the common items between them
     """
-    
+
     return list(set(liste1).intersection(liste2))
 
 
@@ -157,7 +157,7 @@ def get_unique_kmer(kmer_dict : dict, sequence : str, id_seq : int, kmer_size : 
     Take a kmer dictionnary, a sequence, a seq ID, a kmer_size
     return unique kmer
     """
-    
+
     for kmer in cut_kmer(sequence, kmer_size):
         if kmer not in kmer_dict:
             kmer_dict[kmer] = []
@@ -173,7 +173,7 @@ def search_mates(kmer_dict : dict, sequence : str, kmer_size : int):
     return 8 sequences with the most affinity for the input sequence
     """
 
-    return [i[0] for i in Counter([ids for kmer in cut_kmer(sequence, kmer_size) 
+    return [i[0] for i in Counter([ids for kmer in cut_kmer(sequence, kmer_size)
         if kmer in kmer_dict for ids in kmer_dict[kmer]]).most_common(8)]
 
 
@@ -183,14 +183,14 @@ def get_identity(alignment_list : list):
     Take an alignment list of two aligned sequences
     return the identity percentage of them
     """
-    
+
     tmp = 0
     for nt in zip(alignment_list[0], alignment_list[1]):
         if nt[0] == nt[1]:
             tmp += 1
 
     identity = (tmp / len(alignment_list[0])) * 100
-    
+
     return identity
 
 
@@ -198,7 +198,7 @@ def std(value_list):
     """
     Return the standard deviation of two values
     """
-    
+
     return statistics.stdev(value_list)
 
 def mean(value_list):
@@ -226,24 +226,23 @@ def detect_chimera(perc_identity_matrix):
         similarity_chunk2.add(sim[1])
 
     standard_deviation_mean = mean(standard_deviation)
-    
+
     if len(similarity_chunk2) >= 2 or len(similarity_chunk1) >= 2:
         similarity = 1
-    
+
     if standard_deviation_mean > 5 and similarity == 1:
-            return True
-        return False
-
-    pass
+        return True
+    return False
 
 
-def chimera_removal(amplicon_file : str, minseqlen : int, mincount : int, chunk_size : int, kmer_size : int):
+def chimera_removal(amplicon_file : str, minseqlen : int,
+    mincount : int, chunk_size : int, kmer_size : int):
     """
     Take a compressed fasta file, the minimum length for sequences, their min occurences,
     the chunk size and the kmer size
     return a generator of non chimera sequences
     """
-    
+
     sequences = []
     occurences = []
 
@@ -254,9 +253,9 @@ def chimera_removal(amplicon_file : str, minseqlen : int, mincount : int, chunk_
     segments = []
     kmer_dict = {}
 
-    for index in range(len(sequences)):
-        segments.append(get_chunks(sequences[index], chunk_size))
-        kmer_dict = get_unique_kmer(search_mates(kmer_dict, sequences[index], index, kmer_size))
+    for index, seq in enumerate(sequences):
+        segments.append(get_chunks(seq, chunk_size))
+        kmer_dict = get_unique_kmer(kmer_dict, seq, index, kmer_size)
 
     mates = []
 
@@ -271,35 +270,36 @@ def chimera_removal(amplicon_file : str, minseqlen : int, mincount : int, chunk_
     chunk_list = [get_chunks(sequences[parent_seq[0]], chunk_size)]
     chunk_list += [get_chunks(sequences[parent_seq[1]], chunk_size)]
 
-    for index in range(len(sequences)):
-        if sequences[index] not in parent_seq:
-            chimera = get_chunks(sequences[index], chunk_size)
+    for index, seq in enumerate(sequences):
+        if seq not in parent_seq:
+            chimera = get_chunks(seq, chunk_size)
             matrix = [[] for chunk in range(len(chimera))]
 
             for chunk in range(len(chunk_list)):
                 for index2, chunk2 in enumerate(chimera):
                     matrix[index2].append(get_identity(nw.global_align(chunk2,
-                        chunk_list[chunk][index2], gap_open = -1, 
-                        gap_extend = -1, 
+                        chunk_list[chunk][index2], gap_open = -1,
+                        gap_extend = -1,
                         matrix = os.path.abspath(os.path.join(
                             os.path.dirname(__file__), "../agc")) + "/MATCH")))
-            
+
             if detect_chimera(matrix):
                 chim_id.append(index)
 
-    for index in range(len(sequences)):
+    for index, seq in enumerate(sequences):
         if index not in chim_id:
-            yield [sequences[index], occurences[index]]
+            yield [seq, occurences[index]]
 
 
 
-def abundance_greedy_clustering(amplicon_file : str, minseqlen : int, mincount : int, chunk_size : int, kmer_size : int):
+def abundance_greedy_clustering(amplicon_file : str, minseqlen : int,
+    mincount : int, chunk_size : int, kmer_size : int):
     """
     Take a compressed fasta file, the minimum length for sequences, their min occurences,
     the chunk size and the kmer size
     return the coccurence of each non chimera sequences
     """
-    
+
     seq_count = chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size)
     OTU = []
 
@@ -313,7 +313,7 @@ def write_OTU(OTU_list : list, output_file : str):
     """
     Take OTU list and write it in a fasta file
     """
-    
+
     with open(output_file, "w") as filout:
         for index, OTU in enumerate(OTU_list):
             filout.write(f">OTU_{index + 1}, occurence : {OTU[1]}" + "\n")
@@ -339,14 +339,14 @@ def main():
     Main program function
     """
     # Get arguments
-    
+
     args = get_arguments()
 
-    dereplication_fulllength(args.amplicon_file, args.minseqlen, args.mincount)
+    OTU = abundance_greedy_clustering(args.amplicon_file, args.minseqlen,
+        args.mincount, args.chunk_size, args.kmer_size)
 
-    L = ["TGGGGAATATTGCACAATGGGCGCAAGCCTGATGCAG", "TGGGGAATA--GCACAATGGGCGCAAGCCTCTAGCAG"]
-    ids = get_identity(L)
-    print(ids)
+    write_OTU(OTU, args.output_file)
+
 
 if __name__ == '__main__':
     main()
