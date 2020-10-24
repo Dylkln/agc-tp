@@ -74,20 +74,20 @@ def get_arguments():
 
 def read_fasta(amplicon_file : str, minseqlen : int):
     """
-    Take a file and return sequences yield 
+    Take compressed fasta file and return sequences yield 
     with a length greater or equal to minseqlen
     """
     
     with gzip.open(amplicon_file, "rb") as filin:
         for sequence in filin:
             if len(sequence) >= minseqlen:
-                yield sequence.strip()
+                yield sequence.decode("UTF-8").strip()
             continue
 
 
 def dereplication_fulllength(amplicon_file : str, minseqlen : int, mincount : int):
     """
-    Take fasta file, min length of sequences, and their min count
+    Take a compressed fasta file, min length of sequences, and their min count
     return a yield of the sequence and its count
     """
     
@@ -211,37 +211,26 @@ def mean(value_list):
 def detect_chimera(perc_identity_matrix):
     """
     Take an identity matrix
-    return boolean
+    return boolean : True if the target sequence is a chimera,
+    False if the target sequence is not a chimera
     """
 
-    standard_deviation = []
+    standard_deviation = 0
+    similarity_chunk1 = set()
+    similarity_chunk2 = set()
     similarity = 0
-    flag = 0
 
+    for sim in perc_identity_matrix:
+        standard_deviation += std(sim)
+        similarity_chunk1.add(sim[0])
+        similarity_chunk2.add(sim[1])
 
-    for line in perc_identity_matrix:
-
-        line_values = [line[0], line[1]]
-        standard_deviation.append(std(line_values))
-
-        if flag == 0:
-            value_0 = line_values[0]
-            value_1 = line_values[0]
-            flag = 1
-        
-        else:
-
-            if similarity == 1:
-                pass
-
-            if value_0 != line_values[0] and value_1 != line_values[1]:
-                similarity = 1
-            value_0 = line_values[0]
-            value_1 = line_values[0]
-
-        standard_deviation_mean = mean(standard_deviation)
-
-        if standard_deviation_mean > 5 and similarity == 1:
+    standard_deviation_mean = mean(standard_deviation)
+    
+    if len(similarity_chunk2) >= 2 or len(similarity_chunk1) >= 2:
+        similarity = 1
+    
+    if standard_deviation_mean > 5 and similarity == 1:
             return True
         return False
 
@@ -250,16 +239,74 @@ def detect_chimera(perc_identity_matrix):
 
 def chimera_removal(amplicon_file : str, minseqlen : int, mincount : int, chunk_size : int, kmer_size : int):
     """
-    
+    Take a compressed fasta file, the minimum length for sequences, their min occurences,
+    the chunk size and the kmer size
+    return a generator of non chimera sequences
     """
-    pass
+    
+    sequences = []
+    occurences = []
+
+    for seq_occ in dereplication_fulllength(amplicon_file, minseqlen, mincount):
+        sequences.append(seq_occ[0])
+        occurences.append(seq_occ[1])
+
+    segments = []
+    kmer_dict = {}
+
+    for index in range(len(sequences)):
+        segments.append(get_chunks(sequences[index], chunk_size))
+        kmer_dict = get_unique_kmer(search_mates(kmer_dict, sequences[index], index, kmer_size))
+
+    mates = []
+
+    for chunks in segments:
+        for chunk in chunks:
+            mates.append(search_mates(kmer_dict, chunk, kmer_size))
+
+    parent_seq = common(mates[0], mates[1])
+
+    chim_id = []
+
+    chunk_list = [get_chunks(sequences[parent_seq[0]], chunk_size)]
+    chunk_list += [get_chunks(sequences[parent_seq[1]], chunk_size)]
+
+    for index in range(len(sequences)):
+        if sequences[index] not in parent_seq:
+            chimera = get_chunks(sequences[index], chunk_size)
+            matrix = [[] for chunk in range(len(chimera))]
+
+            for chunk in range(len(chunk_list)):
+                for index2, chunk2 in enumerate(chimera):
+                    matrix[index2].append(get_identity(nw.global_align(chunk2,
+                        chunk_list[chunk][index2], gap_open = -1, 
+                        gap_extend = -1, 
+                        matrix = os.path.abspath(os.path.join(
+                            os.path.dirname(__file__), "../agc")) + "/MATCH")))
+            
+            if detect_chimera(matrix):
+                chim_id.append(index)
+
+    for index in range(len(sequences)):
+        if index not in chim_id:
+            yield [sequences[index], occurences[index]]
+
 
 
 def abundance_greedy_clustering(amplicon_file : str, minseqlen : int, mincount : int, chunk_size : int, kmer_size : int):
     """
-    
+    Take a compressed fasta file, the minimum length for sequences, their min occurences,
+    the chunk size and the kmer size
+    return the coccurence of each non chimera sequences
     """
-    pass
+    
+    seq_count = chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size)
+    OTU = []
+
+    for seq, count in seq_count:
+        OTU.append(tuple(seq, count))
+
+    return OTU
 
 
 def write_OTU(OTU_list : list, output_file : str):
