@@ -201,11 +201,11 @@ def std(value_list):
 
     return statistics.stdev(value_list)
 
-def mean(value_list):
+def mean(value, liste):
     """
-    Return the mean of an input list
+    Return the mean.
     """
-    return statistics.mean(value_list)
+    return (value/len(liste))
 
 
 def detect_chimera(perc_identity_matrix):
@@ -225,7 +225,7 @@ def detect_chimera(perc_identity_matrix):
         similarity_chunk1.add(sim[0])
         similarity_chunk2.add(sim[1])
 
-    standard_deviation_mean = mean(standard_deviation)
+    standard_deviation_mean = mean(standard_deviation, perc_identity_matrix)
 
     if len(similarity_chunk2) >= 2 or len(similarity_chunk1) >= 2:
         similarity = 1
